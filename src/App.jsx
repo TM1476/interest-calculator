@@ -352,7 +352,7 @@ const App = () => {
       `}</style>
 
       <header className="header">
-        <h1 className="brand">GrowthSim</h1>
+        <h1 className="brand">FutureFund</h1>
         <div className="controls">
           <div ref={currencyRef} style={{ position: 'relative' }}>
             <button className="icon-btn" onClick={() => setIsCurrencyMenuOpen(!isCurrencyMenuOpen)}>
