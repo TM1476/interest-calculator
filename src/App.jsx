@@ -9,14 +9,12 @@ const CURRENCIES = [
   { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
 ];
 
-
-// --- MAIN APP COMPONENT ---
 const App = () => {
   // State for input variables
-  const [principal, setPrincipal] = useState(15000); // Initial Investment
-  const [rate, setRate] = useState(6.5);             // Annual Interest Rate (%)
-  const [years, setYears] = useState(15);            // Time Horizon (Years)
-  const [contributions, setContributions] = useState(250); // Monthly Contributions
+  const [principal, setPrincipal] = useState(15000);
+  const [rate, setRate] = useState(6.5);
+  const [years, setYears] = useState(15);
+  const [contributions, setContributions] = useState(250);
 
   // State for UI
   const [isDark, setIsDark] = useState(true);
@@ -30,89 +28,54 @@ const App = () => {
     [currencyCode]
   );
 
-  // Function to calculate Future Value (FV) using compounding and regular contributions
+  // Financial Calculation Logic
   const calculateFutureValue = useMemo(() => {
-    // A = P(1 + r/n)^(nt) + PMT * [((1 + r/n)^(nt) - 1) / (r/n)]
-    // Where:
-    // P = Principal (Initial investment)
-    // r = Annual interest rate (decimal)
-    // t = Time (years)
-    // n = number of times interest is compounded per year (monthly = 12)
-    // PMT = Periodic Monthly Contribution
-
     const P = principal || 0;
     const r = (rate / 100) || 0;
     const t = years || 0;
-    const n = 12; // Monthly compounding
+    const n = 12; 
     const PMT = contributions || 0;
-    
-    // Monthly interest rate
     const r_n = r / n;
 
     if (t === 0) return { totalValue: P, principalTotal: P, interestEarned: 0, contributionsTotal: 0 };
 
-    // 1. Future Value of a single sum (Principal + Compounding)
     const principalFV = P * Math.pow((1 + r_n), (n * t));
-
-    // 2. Future Value of an annuity (Contributions)
     let contributionsFV = 0;
     if (r_n > 0) {
       contributionsFV = PMT * (Math.pow((1 + r_n), (n * t)) - 1) / r_n;
     } else {
-      // Simple accumulation if rate is 0
       contributionsFV = PMT * (n * t);
     }
     
     const totalValue = principalFV + contributionsFV;
-
-    // Total money contributed by the user (Principal + PMT * n * t)
     const principalTotal = P;
     const contributionsTotal = PMT * n * t;
-    const totalInvested = principalTotal + contributionsTotal;
+    const interestEarned = totalValue - (principalTotal + contributionsTotal);
 
-    // Interest earned is the total value minus the total invested
-    const interestEarned = totalValue - totalInvested;
-
-    return {
-      totalValue,
-      principalTotal,
-      contributionsTotal,
-      interestEarned
-    };
+    return { totalValue, principalTotal, contributionsTotal, interestEarned };
   }, [principal, rate, years, contributions]);
 
   const { totalValue, principalTotal, contributionsTotal, interestEarned } = calculateFutureValue;
   const totalInvested = principalTotal + contributionsTotal;
 
-  // Formatting currency helper
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currencyCode, // Dynamically use the selected currency code
+      currency: currencyCode,
       minimumFractionDigits: 0, 
       maximumFractionDigits: 0,
     }).format(amount);
   };
 
-  // --- Theme Toggle Logic ---
   useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-
-    // Close menu when clicking outside
     function handleClickOutside(event) {
       if (currencyRef.current && !currencyRef.current.contains(event.target)) {
         setIsCurrencyMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isDark]);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleInputChange = (setter) => (e) => {
     const value = parseFloat(e.target.value);
@@ -124,32 +87,22 @@ const App = () => {
     setIsCurrencyMenuOpen(false);
   };
 
-  // Tailwind classes based on theme
-  const backgroundClass = 'bg-gradient-to-br from-slate-950 to-slate-800 dark:from-slate-950 dark:to-slate-800 text-gray-800 dark:text-gray-100 transition-colors duration-500';
-  const cardClass = 'bg-white dark:bg-slate-800 shadow-2xl rounded-2xl p-6 lg:p-8 border border-slate-200 dark:border-slate-700 transition-all duration-300 hover:shadow-violet-500/30';
-  const inputClass = 'w-full px-4 py-2 border dark:border-slate-600 rounded-lg text-lg bg-gray-50 dark:bg-slate-700 focus:ring-violet-500 focus:border-violet-500 transition duration-200';
-  const rangeSliderClass = 'w-full h-2 mt-3 rounded-lg appearance-none cursor-pointer bg-slate-200 dark:bg-slate-700 [&::-webkit-slider-thumb]:bg-violet-500 [&::-moz-range-thumb]:bg-violet-500 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:shadow-lg';
-
-
-  // --- Input Field Component ---
+  // --- Sub-Components ---
   const InputField = ({ label, value, setter, unit, min = 0, max = 1000000, step = 1 }) => (
-    <div className="mb-6">
-      <label className="block text-lg font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
-      <div className="flex items-center space-x-3">
-        {/* Dynamic currency symbol for money fields */}
-        {unit === '$' && <span className="text-xl font-bold dark:text-slate-400">{currentCurrency.symbol}</span>}
+    <div className="input-group">
+      <label className="input-label">{label}</label>
+      <div className="input-container">
+        {unit === '$' && <span className="input-decorator">{currentCurrency.symbol}</span>}
         <input
           type="number"
           value={value}
           onChange={handleInputChange(setter)}
           min={min}
           max={max}
-          step={step}
-          className={inputClass}
-          aria-label={label}
+          className="text-input"
         />
-        {unit === '%' && <span className="text-xl font-bold dark:text-slate-400">%</span>}
-        {unit === 'Yr' && <span className="text-lg font-bold dark:text-slate-400">Years</span>}
+        {unit === '%' && <span className="input-decorator">%</span>}
+        {unit === 'Yr' && <span className="input-decorator">Years</span>}
       </div>
       <input
         type="range"
@@ -158,235 +111,311 @@ const App = () => {
         min={min}
         max={max}
         step={step}
-        className={rangeSliderClass}
+        className="range-slider"
       />
     </div>
   );
 
-  // --- Result Box Component ---
-  const ResultBox = ({ label, value, borderColorClass }) => (
-    <div className={`${cardClass} flex flex-col items-center justify-center text-center p-4 h-full transition duration-300 hover:scale-[1.02] border-t-4 ${borderColorClass}`}>
-      <p className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-1">{label}</p>
-      <p className="text-3xl lg:text-4xl font-extrabold text-violet-500">
-        {formatCurrency(value)}
-      </p>
+  const ResultCard = ({ label, value, colorClass }) => (
+    <div className={`result-card ${colorClass}`}>
+      <span className="result-label">{label}</span>
+      <span className="result-value">{formatCurrency(value)}</span>
     </div>
   );
 
-  // --- Chart Data for Pie Chart ---
-  const pieChartData = [
-    { label: "Initial Principal", value: principalTotal, color: '#6366F1' }, // Indigo-500
-    { label: "Total Contributions", value: contributionsTotal, color: '#22C55E' }, // Green-500
-    { label: "Interest Earned", value: interestEarned, color: '#EF4444' }, // Red-500
-  ].filter(item => item.value > 0);
-
-  // --- Pie Chart SVG Component (Simple and responsive) ---
   const PieChart = ({ data }) => {
     let cumulativeAngle = 0;
     const total = data.reduce((sum, item) => sum + item.value, 0);
-
     return (
-      <svg viewBox="0 0 100 100" className="w-full h-full max-h-96" aria-labelledby="chartTitle">
-        <title id="chartTitle">Investment Breakdown</title>
+      <svg viewBox="0 0 100 100" className="chart-svg">
         {total > 0 ? (
           data.map((item, index) => {
             const startAngle = cumulativeAngle;
             const endAngle = cumulativeAngle + (item.value / total) * 360;
             const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
-
-            const startX = 50 + 50 * Math.cos(startAngle * Math.PI / 180);
-            const startY = 50 + 50 * Math.sin(startAngle * Math.PI / 180);
-            const endX = 50 + 50 * Math.cos(endAngle * Math.PI / 180);
-            const endY = 50 + 50 * Math.sin(endAngle * Math.PI / 180);
-
+            const startX = 50 + 45 * Math.cos((startAngle - 90) * Math.PI / 180);
+            const startY = 50 + 45 * Math.sin((startAngle - 90) * Math.PI / 180);
+            const endX = 50 + 45 * Math.cos((endAngle - 90) * Math.PI / 180);
+            const endY = 50 + 45 * Math.sin((endAngle - 90) * Math.PI / 180);
             cumulativeAngle = endAngle;
-
             return (
               <path
                 key={index}
-                d={`M 50,50 L ${startX},${startY} A 50,50 0 ${largeArcFlag} 1 ${endX},${endY} Z`}
+                d={`M 50,50 L ${startX},${startY} A 45,45 0 ${largeArcFlag} 1 ${endX},${endY} Z`}
                 fill={item.color}
-                stroke={isDark ? '#1E293B' : '#FFFFFF'} // Card background color
-                strokeWidth="0.5"
-                title={`${item.label}: ${formatCurrency(item.value)}`}
+                stroke={isDark ? '#1e293b' : '#ffffff'}
+                strokeWidth="1"
               />
             );
           })
         ) : (
-          <text x="50" y="50" textAnchor="middle" fill={isDark ? '#475569' : '#94A3B8'} fontSize="8">
-            Enter values to calculate
-          </text>
+          <circle cx="50" cy="50" r="45" fill="#e2e8f0" />
         )}
       </svg>
     );
   };
 
+  const pieChartData = [
+    { label: "Principal", value: principalTotal, color: '#6366f1' },
+    { label: "Contributions", value: contributionsTotal, color: '#10b981' },
+    { label: "Interest", value: interestEarned, color: '#f43f5e' },
+  ].filter(i => i.value > 0);
 
   return (
-    <div className={`min-h-screen font-sans ${backgroundClass} p-4 sm:p-8 antialiased`}>
-      
-      {/* Header and Theme Toggle */}
-      <header className="flex justify-between items-center max-w-7xl mx-auto py-4 mb-8">
-        <h1 className="text-3xl font-extrabold text-violet-500 tracking-tight">
-          Financial Growth Simulator
-        </h1>
-        <div className='flex space-x-4 items-center'>
+    <div className={`app-wrapper ${isDark ? 'dark-theme' : 'light-theme'}`}>
+      <style>{`
+        :root {
+          --bg-primary: #f8fafc;
+          --bg-card: #ffffff;
+          --text-main: #1e293b;
+          --text-muted: #64748b;
+          --accent: #6366f1;
+          --accent-hover: #4f46e5;
+          --border: #e2e8f0;
+          --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+          --input-bg: #f1f5f9;
+        }
 
-          {/* Currency Selector */}
-          <div ref={currencyRef} className="relative inline-block text-left">
-            <button
-              onClick={() => setIsCurrencyMenuOpen(!isCurrencyMenuOpen)}
-              className="p-3 rounded-full bg-violet-600 text-white dark:bg-violet-600 hover:bg-violet-500 dark:hover:bg-violet-500 transition-all duration-200 shadow-md flex items-center justify-center text-sm font-semibold w-12 h-12"
-              aria-expanded={isCurrencyMenuOpen}
-              aria-haspopup="true"
-              aria-label={`Current Currency: ${currentCurrency.name}`}
-            >
+        .dark-theme {
+          --bg-primary: #0f172a;
+          --bg-card: #1e293b;
+          --text-main: #f1f5f9;
+          --text-muted: #94a3b8;
+          --accent: #818cf8;
+          --accent-hover: #6366f1;
+          --border: #334155;
+          --shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+          --input-bg: #0f172a;
+        }
+
+        * { box-sizing: border-box; transition: background-color 0.3s, border-color 0.3s; }
+        body { margin: 0; font-family: 'Inter', system-ui, sans-serif; }
+        
+        .app-wrapper {
+          min-height: 100vh;
+          background: var(--bg-primary);
+          color: var(--text-main);
+          padding: 2rem;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .header {
+          width: 100%;
+          max-width: 1200px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 3rem;
+        }
+
+        .brand { font-size: 1.75rem; font-weight: 800; color: var(--accent); margin: 0; }
+
+        .controls { display: flex; gap: 1rem; }
+
+        .icon-btn {
+          width: 44px; height: 44px;
+          border-radius: 50%;
+          border: 1px solid var(--border);
+          background: var(--bg-card);
+          color: var(--text-main);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: var(--shadow);
+        }
+
+        .main-container {
+          width: 100%;
+          max-width: 1200px;
+          display: grid;
+          grid-template-columns: 1fr 2fr;
+          gap: 2rem;
+        }
+
+        @media (max-width: 968px) { .main-container { grid-template-columns: 1fr; } }
+
+        .card {
+          background: var(--bg-card);
+          border: 1px solid var(--border);
+          border-radius: 1.5rem;
+          padding: 2rem;
+          box-shadow: var(--shadow);
+        }
+
+        .input-group { margin-bottom: 1.5rem; }
+        .input-label { display: block; font-weight: 600; margin-bottom: 0.75rem; color: var(--text-muted); font-size: 0.9rem; }
+        
+        .input-container {
+          display: flex;
+          align-items: center;
+          background: var(--input-bg);
+          border: 1px solid var(--border);
+          border-radius: 0.75rem;
+          padding: 0.5rem 1rem;
+          gap: 0.5rem;
+        }
+
+        .text-input {
+          background: transparent;
+          border: none;
+          color: var(--text-main);
+          font-size: 1.25rem;
+          font-weight: 700;
+          width: 100%;
+          outline: none;
+        }
+
+        .input-decorator { font-weight: 700; color: var(--accent); }
+
+        .range-slider {
+          width: 100%;
+          margin-top: 1rem;
+          accent-color: var(--accent);
+          cursor: pointer;
+        }
+
+        .results-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        }
+
+        @media (max-width: 640px) { .results-grid { grid-template-columns: 1fr; } }
+
+        .result-card {
+          padding: 1.5rem;
+          border-radius: 1rem;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          border: 1px solid var(--border);
+          background: var(--bg-card);
+          border-bottom: 4px solid var(--accent);
+        }
+
+        .result-label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem; }
+        .result-value { font-size: 1.5rem; font-weight: 800; color: var(--accent); }
+
+        .visual-card { display: flex; gap: 2rem; align-items: center; }
+        @media (max-width: 768px) { .visual-card { flex-direction: column; } }
+
+        .chart-container { flex: 1; max-width: 300px; position: relative; }
+        .chart-svg { width: 100%; height: auto; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.1)); }
+
+        .legend { flex: 1.2; width: 100%; }
+        .legend-item {
+          display: flex;
+          justify-content: space-between;
+          padding: 1rem;
+          background: var(--input-bg);
+          border-radius: 0.75rem;
+          margin-bottom: 0.75rem;
+        }
+
+        .legend-label { display: flex; align-items: center; gap: 0.75rem; font-weight: 600; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .legend-value { font-weight: 700; }
+
+        .total-row {
+          margin-top: 1.5rem;
+          padding-top: 1.5rem;
+          border-top: 2px dashed var(--border);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .dropdown-menu {
+          position: absolute;
+          top: 55px; right: 0;
+          background: var(--bg-card);
+          border: 1px solid var(--border);
+          border-radius: 0.75rem;
+          box-shadow: var(--shadow);
+          z-index: 100;
+          width: 200px;
+          overflow: hidden;
+        }
+
+        .dropdown-item {
+          width: 100%; padding: 0.75rem 1rem;
+          border: none; background: none;
+          text-align: left; color: var(--text-main);
+          cursor: pointer;
+        }
+
+        .dropdown-item:hover { background: var(--input-bg); }
+      `}</style>
+
+      <header className="header">
+        <h1 className="brand">GrowthSim</h1>
+        <div className="controls">
+          <div ref={currencyRef} style={{ position: 'relative' }}>
+            <button className="icon-btn" onClick={() => setIsCurrencyMenuOpen(!isCurrencyMenuOpen)}>
               {currentCurrency.symbol}
             </button>
-            
-            {/* Currency Dropdown Menu */}
             {isCurrencyMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-slate-700 ring-1 ring-black ring-opacity-5 z-10 transition transform origin-top-right">
-                <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                  {CURRENCIES.map((c) => (
-                    <button
-                      key={c.code}
-                      onClick={() => handleCurrencyChange(c.code)}
-                      className={`block w-full text-left px-4 py-2 text-sm transition-colors duration-150 ${
-                        c.code === currencyCode
-                          ? 'bg-violet-100 dark:bg-violet-900 text-violet-600 dark:text-violet-300 font-bold'
-                          : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-600'
-                      }`}
-                      role="menuitem"
-                    >
-                      {`${c.symbol} ${c.name} (${c.code})`}
-                    </button>
-                  ))}
-                </div>
+              <div className="dropdown-menu">
+                {CURRENCIES.map(c => (
+                  <button key={c.code} className="dropdown-item" onClick={() => handleCurrencyChange(c.code)}>
+                    {c.symbol} - {c.name}
+                  </button>
+                ))}
               </div>
             )}
           </div>
-
-          {/* Theme Toggle */}
-          <button
-            onClick={() => setIsDark(!isDark)}
-            className="p-3 rounded-full bg-slate-700 text-white dark:bg-slate-700 hover:bg-slate-600 dark:hover:bg-slate-600 transition-all duration-200 shadow-md w-12 h-12 flex items-center justify-center"
-            aria-label="Toggle dark mode"
-          >
-            {isDark ? (
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M6.34 17.66l-1.41 1.41"/><path d="M17.66 6.34l1.41-1.41"/></svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-moon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-            )}
+          <button className="icon-btn" onClick={() => setIsDark(!isDark)}>
+            {isDark ? '☀️' : '🌙'}
           </button>
         </div>
       </header>
 
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-        
-        {/* Left Column: Input Panel */}
-        <div className={`lg:col-span-1 ${cardClass} border-violet-500`}>
-          <h2 className="text-2xl font-bold mb-6 text-slate-800 dark:text-white">Investment Parameters</h2>
-          <InputField
-            label="Initial Investment (Principal)"
-            value={principal}
-            setter={setPrincipal}
-            unit="$"
-            min={0}
-            max={500000}
-            step={100}
-          />
-          <InputField
-            label="Annual Interest Rate"
-            value={rate}
-            setter={setRate}
-            unit="%"
-            min={0}
-            max={20}
-            step={0.1}
-          />
-          <InputField
-            label="Time Horizon"
-            value={years}
-            setter={setYears}
-            unit="Yr"
-            min={1}
-            max={60}
-            step={1}
-          />
-          <InputField
-            label="Monthly Contribution"
-            value={contributions}
-            setter={setContributions}
-            unit="$"
-            min={0}
-            max={10000}
-            step={50}
-          />
-        </div>
+      <main className="main-container">
+        <section className="card">
+          <h2 style={{ marginBottom: '2rem' }}>Parameters</h2>
+          <InputField label="Initial Principal" value={principal} setter={setPrincipal} unit="$" max={500000} step={500} />
+          <InputField label="Interest Rate" value={rate} setter={setRate} unit="%" max={25} step={0.1} />
+          <InputField label="Investment Years" value={years} setter={setYears} unit="Yr" max={50} />
+          <InputField label="Monthly Contribution" value={contributions} setter={setContributions} unit="$" max={5000} step={50} />
+        </section>
 
-        {/* Right Column: Results & Visualization */}
-        <div className="lg:col-span-2 space-y-8">
-          
-          {/* Top Row: Key Results */}
-          <div className="grid sm:grid-cols-3 gap-6">
-            <ResultBox label="Total Future Value" value={totalValue} borderColorClass="border-violet-500" />
-            <ResultBox label="Total Invested" value={totalInvested} borderColorClass="border-emerald-500" />
-            <ResultBox label="Interest Earned" value={interestEarned} borderColorClass="border-rose-500" />
+        <section>
+          <div className="results-grid">
+            <ResultCard label="Final Balance" value={totalValue} colorClass="primary" />
+            <ResultCard label="Invested Amount" value={totalInvested} colorClass="secondary" />
+            <ResultCard label="Total Interest" value={interestEarned} colorClass="tertiary" />
           </div>
 
-          {/* Bottom Row: Visualization and Legend */}
-          <div className={`${cardClass} flex flex-col md:flex-row gap-8`}>
-            
-            {/* Pie Chart Area */}
-            <div className="w-full md:w-1/2 h-64 md:h-auto max-h-[400px]">
+          <div className="card visual-card">
+            <div className="chart-container">
               <PieChart data={pieChartData} />
             </div>
-            
-            {/* Legend & Breakdown */}
-            <div className="w-full md:w-1/2 flex flex-col justify-center">
-              <h3 className="text-2xl font-bold mb-4 text-slate-800 dark:text-white">Investment Breakdown</h3>
-              <div className="space-y-4">
-                
-                {/* Initial Principal */}
-                <div className="flex justify-between items-center p-3 rounded-lg bg-gray-50 dark:bg-slate-700 shadow-sm">
-                  <span className="flex items-center text-slate-800 dark:text-slate-300 text-lg">
-                    <div className="w-4 h-4 rounded-full mr-3 bg-indigo-500"></div>
-                    Initial Principal
-                  </span>
-                  <span className="font-extrabold text-xl text-indigo-500">{formatCurrency(principalTotal)}</span>
-                </div>
-
-                {/* Total Contributions */}
-                <div className="flex justify-between items-center p-3 rounded-lg bg-gray-50 dark:bg-slate-700 shadow-sm">
-                  <span className="flex items-center text-slate-800 dark:text-slate-300 text-lg">
-                    <div className="w-4 h-4 rounded-full mr-3 bg-emerald-500"></div>
-                    Total Contributions
-                  </span>
-                  <span className="font-extrabold text-xl text-emerald-500">{formatCurrency(contributionsTotal)}</span>
-                </div>
-
-                {/* Interest Earned */}
-                <div className="flex justify-between items-center p-3 rounded-lg bg-gray-50 dark:bg-slate-700 shadow-sm">
-                  <span className="flex items-center text-slate-800 dark:text-slate-300 text-lg">
-                    <div className="w-4 h-4 rounded-full mr-3 bg-rose-500"></div>
-                    Interest Earned
-                  </span>
-                  <span className="font-extrabold text-xl text-rose-500">{formatCurrency(interestEarned)}</span>
-                </div>
-                
-                {/* Total Value Summary */}
-                <div className="flex justify-between items-center pt-6 border-t border-slate-300 dark:border-slate-600 mt-6">
-                    <span className="text-2xl font-bold text-slate-800 dark:text-white">TOTAL FUTURE VALUE</span>
-                    <span className="text-3xl font-extrabold text-violet-600 dark:text-violet-400">{formatCurrency(totalValue)}</span>
-                </div>
-
+            <div className="legend">
+              <h3>Investment Breakdown</h3>
+              <div className="legend-item">
+                <span className="legend-label"><div className="dot" style={{background: '#6366f1'}}></div> Principal</span>
+                <span className="legend-value">{formatCurrency(principalTotal)}</span>
+              </div>
+              <div className="legend-item">
+                <span className="legend-label"><div className="dot" style={{background: '#10b981'}}></div> Contributions</span>
+                <span className="legend-value">{formatCurrency(contributionsTotal)}</span>
+              </div>
+              <div className="legend-item">
+                <span className="legend-label"><div className="dot" style={{background: '#f43f5e'}}></div> Interest</span>
+                <span className="legend-value">{formatCurrency(interestEarned)}</span>
+              </div>
+              <div className="total-row">
+                <span style={{ fontWeight: 800, fontSize: '1.2rem' }}>Future Value</span>
+                <span style={{ fontWeight: 800, fontSize: '1.8rem', color: 'var(--accent)' }}>{formatCurrency(totalValue)}</span>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 };
